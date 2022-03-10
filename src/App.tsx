@@ -1,24 +1,27 @@
-import React from 'react';
-import logo from './logo.svg';
 import './App.css';
 
 function App() {
+
+  const greet = () => {
+
+  };
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div className="mainContainer">
+
+      <div className="dataContainer">
+        <div className="header">
+        <span role="img" aria-label="waving hand emoji">👋</span> Hey there!
+        </div>
+
+        <div className="bio">
+        Hi, I'm Noah. Connect your Ethereum wallet and greet me!
+        </div>
+
+        <button className="greetButton" onClick={greet}>
+          Greet Me
+        </button>
+      </div>
     </div>
   );
 }
