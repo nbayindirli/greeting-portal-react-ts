@@ -5,7 +5,8 @@ import { ALL_EMOJIS } from './util/emojis';
 
 function App() {
 
-    const [currentAccount, setCurrentAccount] = useState("");
+    const [currentAccount, setCurrentAccount] = useState('');
+    const [balance, setBalance] = useState(0);
 
     const walletConnected = async () => {
         try {
@@ -35,6 +36,8 @@ function App() {
             } else {
                 console.log('No authorized account found.');
             }
+
+            getBalance(ethereum);
         } catch (error) {
             toast.error('Failed to connect to wallet.', { style });
             console.log(error);
@@ -62,6 +65,17 @@ function App() {
             toast.success(`Successfully connected to ${currentAccountShorthand}`, { style, id });
         } catch (error) {
             toast.error('Failed to connect to wallet.', { style, id });
+            console.log(error);
+        }
+    };
+
+    const getBalance = async (ethereum: any) => {
+        try {
+            const balanceHex = await ethereum.request({ method: 'eth_getBalance', params: [currentAccount, 'latest'] });
+            const balance = hexStringToBalance(balanceHex);
+            console.log(`Successfully got account balance for ${currentAccount}: ${balance}`);
+            setBalance(balance);
+        } catch (error) {
             console.log(error);
         }
     };
@@ -131,6 +145,17 @@ function App() {
                 <button className='greetButton' onClick={clearToasts}>
                     Eat Toast <span role='img' aria-label='waving hand emoji'>🍞</span>
                 </button>
+
+                {
+                    balance > 0
+                        &&
+                    (
+                        <div className='balance'>
+                            Current balance: {balance} ETH
+                        </div>
+                    )
+                }
+                
             </div>
         </div>
     );
@@ -165,4 +190,12 @@ function getRandomIcon() {
 
 function randomInteger(min: number, max: number) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function hexStringToBalance(balanceHexString: string) {
+    const balanceString = parseInt(balanceHexString, 16) / (10 ** 18);
+
+    const balance: number = +balanceString.toFixed(4)
+
+    return balance;
 }
