@@ -5,6 +5,7 @@ import { ALL_EMOJIS } from './util/emojis';
 
 function App() {
 
+    const [isInstalled, setIsInstalled] = useState(false);
     const [currentAccount, setCurrentAccount] = useState('');
     const [balance, setBalance] = useState(0);
 
@@ -14,8 +15,11 @@ function App() {
 
             if (!ethereum) {
                 console.log('Please install non-custodial wallet.');
+                toast.error('Please install non-custodial wallet.', { style });
+                return;
             } else {
                 console.log(`Ethereum object obtained: ${ethereum}`);
+                setIsInstalled(true);
             }
 
             const accounts = await ethereum.request({ method: 'eth_accounts' });
@@ -36,8 +40,6 @@ function App() {
             } else {
                 console.log('No authorized account found.');
             }
-
-            getBalance(ethereum);
         } catch (error) {
             toast.error('Failed to connect to wallet.', { style });
             console.log(error);
@@ -46,13 +48,17 @@ function App() {
 
     const connectWallet = async () => {
         const id = toast.loading('Connecting to wallet...', { style });
-        
+
         try {
             const { ethereum } = window;
 
             if (!ethereum) {
-                alert('Please install wallet.');
+                console.log('Please install non-custodial wallet.');
+                toast.error('Please install non-custodial wallet.', { style, id });
                 return;
+            } else {
+                console.log(`Ethereum object obtained: ${ethereum}`);
+                setIsInstalled(true);
             }
 
             const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
@@ -81,7 +87,7 @@ function App() {
     };
 
     const greet = () => {
-        
+
         try {
             toast("Greetings!", {
                 icon: getRandomIcon(),
@@ -123,7 +129,7 @@ function App() {
                 </div>
 
                 {
-                    !currentAccount
+                    !currentAccount && isInstalled
                         &&
                     (
                         <button className='greetButton' onClick={connectWallet}>
@@ -147,15 +153,15 @@ function App() {
                 </button>
 
                 {
-                    balance > 0
-                        &&
-                    (
-                        <div className='balance'>
-                            Current balance: {balance} ETH
-                        </div>
-                    )
+                    // balance > 0
+                    //     &&
+                    // (
+                    //     <div className='balance'>
+                    //         Current balance: {balance} ETH
+                    //     </div>
+                    // )
                 }
-                
+
             </div>
         </div>
     );
