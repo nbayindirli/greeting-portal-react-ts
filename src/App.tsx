@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import './App.css';
 import { ALL_EMOJIS } from './util/emojis';
+import { CHAINS } from './util/idsToChains';
+import FadeIn from "react-fade-in";
 
 function App() {
 
     const [isInstalled, setIsInstalled] = useState(false);
     const [currentAccount, setCurrentAccount] = useState('');
-    const [balance, setBalance] = useState(0);
+    const [balance, setBalance] = useState(-1);
+    const [networkName, setNetworkName] = useState('');
 
     const walletConnected = async function () {
         try {
@@ -82,7 +85,7 @@ function App() {
 
             if (!ethereum) {
                 console.log('Unable to retrieve balance.');
-                setBalance(0);
+                setBalance(-1);
                 return;
             }
 
@@ -92,13 +95,32 @@ function App() {
             setBalance(balance);
         } catch (error) {
             console.log(error);
-            setBalance(0);
+            setBalance(-1);
+        }
+    };
+
+    const getNetworkName = async function () {
+        try {
+            const { ethereum } = window;
+
+            if (!ethereum) {
+                console.log('Unable to get network name.');
+                setNetworkName('');
+                return;
+            }
+
+            const networkName = chainIdHexToNetworkName(ethereum.chainId);
+            console.log('Now connected to', networkName);
+            setNetworkName(networkName);
+        } catch (error) {
+            console.log(error);
+            setNetworkName('');
         }
     };
 
     const greet = () => {
         try {
-            toast("Greetings!", {
+            toast('Greetings!', {
                 icon: getRandomIcon(),
                 style
             });
@@ -110,7 +132,7 @@ function App() {
 
     const clearToasts = () => {
         toast.dismiss();
-        toast("nom nom nom", {
+        toast('nom nom nom', {
             style,
             icon: '🍽'
         });
@@ -118,16 +140,24 @@ function App() {
 
     useEffect(function () {
         walletConnected();
+        getBalance();
+        getNetworkName();
 
         const { ethereum } = window;
 
         if (ethereum) {
-            ethereum.on('chainChanged', (_chainId: any) => window.location.reload());
+            ethereum.on('chainChanged', function (_chainId: any) {
+                window.location.reload();
+            });
+            ethereum.on('accountsChanged', function () {
+                window.location.reload();
+            });
         }
     }, []);
 
     useEffect(function () {
         getBalance();
+        getNetworkName();
     }, [currentAccount]);
 
     return (
@@ -139,19 +169,22 @@ function App() {
             />
 
             <div className='dataContainer'>
+
                 <div className='header'>
                     Greetings <span role='img' aria-label='sushi'>🍣</span>
                 </div>
 
-                <div className='bio'>
-                    The name's Bay. Noah Bay(indirli). Connect your wallet and greet me!
-                </div>
+                <FadeIn>
+                    <div className='bio'>
+                        The name's Bay. Noah Bay(indirli). Connect your wallet and greet me!
+                    </div>
+                </FadeIn>
 
                 {
                     !currentAccount && isInstalled
                         &&
                     (
-                        <button className='greetButton' onClick={connectWallet}>
+                        <button className='mainButton' onClick={connectWallet}>
                             Connect Wallet <span role='img' aria-label='flying money'>💸</span>
                         </button>
                     )
@@ -161,23 +194,25 @@ function App() {
                     currentAccount
                         &&
                     (
-                        <button className='greetButton' onClick={greet}>
+                        <button className='mainButton' onClick={greet}>
                             Greet Me <span role='img' aria-label='waving hand emoji'>👋</span>
                         </button>
                     )
                 }
 
-                <button className='greetButton' onClick={clearToasts}>
+                <button className='mainButton' onClick={clearToasts}>
                     Eat Toast <span role='img' aria-label='waving hand emoji'>🍞</span>
                 </button>
 
                 {
-                    balance > 0
+                    balance >= 0
                         &&
                     (
-                        <div className='balance'>
-                            Current balance: {balance} ETH
-                        </div>
+                        <FadeIn>
+                            <div className='balance'>
+                                Current balance: {balance} ETH { networkName !== '' && `(on ${networkName})`}
+                            </div>
+                        </FadeIn>
                     )
                 }
 
@@ -223,4 +258,9 @@ function hexStringToBalance(balanceHexString: string) {
     const balance: number = +balanceString.toFixed(4)
 
     return balance;
+}
+
+function chainIdHexToNetworkName(chainIdHexString: string): string {
+    const chainId: number = parseInt(chainIdHexString, 16);
+    return CHAINS[chainId];
 }
