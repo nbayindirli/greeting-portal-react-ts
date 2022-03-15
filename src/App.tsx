@@ -9,13 +9,14 @@ function App() {
     const [currentAccount, setCurrentAccount] = useState('');
     const [balance, setBalance] = useState(0);
 
-    const walletConnected = async () => {
+    const walletConnected = async function () {
         try {
             const { ethereum } = window;
 
             if (!ethereum) {
                 console.log('Please install non-custodial wallet.');
                 toast.error('Please install non-custodial wallet.', { style });
+                setIsInstalled(false);
                 return;
             } else {
                 console.log(`Ethereum object obtained: ${ethereum}`);
@@ -46,15 +47,15 @@ function App() {
         }
     };
 
-    const connectWallet = async () => {
+    const connectWallet = async function () {
         const id = toast.loading('Connecting to wallet...', { style });
-
         try {
             const { ethereum } = window;
 
             if (!ethereum) {
                 console.log('Please install non-custodial wallet.');
                 toast.error('Please install non-custodial wallet.', { style, id });
+                setIsInstalled(false);
                 return;
             } else {
                 console.log(`Ethereum object obtained: ${ethereum}`);
@@ -75,19 +76,27 @@ function App() {
         }
     };
 
-    const getBalance = async (ethereum: any) => {
+    const getBalance = async function () {
         try {
+            const { ethereum } = window;
+
+            if (!ethereum) {
+                console.log('Unable to retrieve balance.');
+                setBalance(0);
+                return;
+            }
+
             const balanceHex = await ethereum.request({ method: 'eth_getBalance', params: [currentAccount, 'latest'] });
             const balance = hexStringToBalance(balanceHex);
             console.log(`Successfully got account balance for ${currentAccount}: ${balance}`);
             setBalance(balance);
         } catch (error) {
             console.log(error);
+            setBalance(0);
         }
     };
 
     const greet = () => {
-
         try {
             toast("Greetings!", {
                 icon: getRandomIcon(),
@@ -107,9 +116,13 @@ function App() {
         });
     }
 
-    useEffect(() => {
+    useEffect(function () {
         walletConnected();
     }, []);
+
+    useEffect(function () {
+        getBalance();
+    }, [currentAccount]);
 
     return (
         <div className='mainContainer'>
@@ -153,13 +166,13 @@ function App() {
                 </button>
 
                 {
-                    // balance > 0
-                    //     &&
-                    // (
-                    //     <div className='balance'>
-                    //         Current balance: {balance} ETH
-                    //     </div>
-                    // )
+                    balance > 0
+                        &&
+                    (
+                        <div className='balance'>
+                            Current balance: {balance} ETH
+                        </div>
+                    )
                 }
 
             </div>

@@ -42,9 +42,11 @@ body {
     border: 0;
     border-radius: 5px;
 }
- .balance {
+
+.balance {
     margin-top: 16px;
     font-size: 15px;
     padding: 8px;
     text-align: center;
- }
+    vertical-align: center;
+}
