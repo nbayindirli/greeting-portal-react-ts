@@ -118,6 +118,12 @@ function App() {
 
     useEffect(function () {
         walletConnected();
+
+        const { ethereum } = window;
+
+        if (ethereum) {
+            ethereum.on('chainChanged', (_chainId: any) => window.location.reload());
+        }
     }, []);
 
     useEffect(function () {
