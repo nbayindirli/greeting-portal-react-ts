@@ -133,7 +133,7 @@ function App() {
     }
 
     const greet = async function () {
-        staticStartLoading();
+        continuousStartLoading(10, 3000);
 
         const icon = getRandomIcon();
         const greetId = toast.loading('Attempting to greet...', { style });
@@ -151,6 +151,7 @@ function App() {
             // const countId = toast.loading(`Current greet count: ${greetCount}`, { style });
 
             const greetTxn = await greetPortalContract.greet();
+
             console.log(`Mining greeting (${greetTxn.hash})`);
             toast.loading(`Mining greeting (${getAccountShorthand(greetTxn.hash)})`, { style, id: greetId });
 
@@ -166,14 +167,12 @@ function App() {
             toast('Greetings!', { icon, style, id: greetId });
 
             // toast(`New greet count: ${greetCount}`, { icon, style, id: countId });
-            
-            completeLoading();
         } catch (error) {
-            decreaseLoading();
-
             toast.error('Did not greet :/', { style, id: greetId });
             console.log(error);
         }
+
+        completeLoading();
     };
 
     const getTotalGreetings = async function () {
@@ -193,13 +192,13 @@ function App() {
             console.log(`Total greet count: ${greetCount}`);
             toast(`Total greet count: ${greetCount}`, { icon, style });
 
-            completeLoading();
+            
         } catch (error) {
-            decreaseLoading();
-
             toast.error('Unable to get total greet count.', { style });
             console.log(error);
         }
+
+        completeLoading();
     };
 
     const getGreetPortalContract = async function (ethereum: any) {
@@ -227,19 +226,19 @@ function App() {
             );
     }
 
-    const continuousStartLoading = function () {
+    const continuousStartLoading = function (x?: number, y?: number) {
         // @ts-ignore
-        loadingBarRef.current.continuousStart();
+        loadingBarRef.current.continuousStart(x, y);
     };
 
-    const staticStartLoading = function () {
+    const staticStartLoading = function (x: number) {
         // @ts-ignore
-        loadingBarRef.current.staticStart(10);
+        loadingBarRef.current.staticStart(x);
     };
 
-    const decreaseLoading = function () {
+    const decreaseLoading = function (x: number) {
         // @ts-ignore
-        loadingBarRef.current.decrease(100);
+        loadingBarRef.current.decrease(x);
     };
     
     const completeLoading = function () {
