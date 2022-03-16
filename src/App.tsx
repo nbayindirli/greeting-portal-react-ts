@@ -1,24 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import './App.css';
-import { ALL_EMOJIS } from './util/emojis';
-import { CHAINS } from './util/idsToChains';
-import FadeIn from "react-fade-in";
+import FadeIn from 'react-fade-in';
+import LoadingBar from 'react-top-loading-bar';
+import { ethers } from 'ethers';
+import GreetPortalContract from './contracts/GreetPortal.json';
+import { SUPPORTED_WALLETS } from './util/supportedWallets';
+import { ETHERSCAN_ADDRESS_PATH, ETHERSCAN_MAINNET_BASE_URL, ETHERSCAN_TESTNET_BASE_URL } from './util/etherscanURLs';
+import style from './util/hotToastStyle';
+import { chainIdHexToNetworkName, delay, formatString, getAccountShorthand, getRandomIcon, hexStringToBalance } from './util/tools';
 
 function App() {
+
+    const loadingBarRef = useRef(null);
 
     const [isInstalled, setIsInstalled] = useState(false);
     const [currentAccount, setCurrentAccount] = useState('');
     const [balance, setBalance] = useState(-1);
     const [networkName, setNetworkName] = useState('');
 
+    const greetPortalContractAddress = '0xD45DA419Ae6c960530A7cFa2aFff84cd08B907dC';
+    const greetPortalContractABI = GreetPortalContract.abi;
+
     const walletConnected = async function () {
         try {
             const { ethereum } = window;
-
             if (!ethereum) {
-                console.log('Please install non-custodial wallet.');
-                toast.error('Please install non-custodial wallet.', { style });
+                console.log('No supported wallets found.');
+                toast.error('No supported wallets found.', { style });
                 setIsInstalled(false);
                 return;
             } else {
@@ -54,7 +63,6 @@ function App() {
         const id = toast.loading('Connecting to wallet...', { style });
         try {
             const { ethereum } = window;
-
             if (!ethereum) {
                 console.log('Please install non-custodial wallet.');
                 toast.error('Please install non-custodial wallet.', { style, id });
@@ -82,7 +90,6 @@ function App() {
     const getBalance = async function () {
         try {
             const { ethereum } = window;
-
             if (!ethereum) {
                 console.log('Unable to retrieve balance.');
                 setBalance(-1);
@@ -102,7 +109,6 @@ function App() {
     const getNetworkName = async function () {
         try {
             const { ethereum } = window;
-
             if (!ethereum) {
                 console.log('Unable to get network name.');
                 setNetworkName('');
@@ -110,23 +116,11 @@ function App() {
             }
 
             const networkName = chainIdHexToNetworkName(ethereum.chainId);
-            console.log('Now connected to', networkName);
+            console.log(`Now connected to ${networkName}.`);
             setNetworkName(networkName);
         } catch (error) {
             console.log(error);
             setNetworkName('');
-        }
-    };
-
-    const greet = () => {
-        try {
-            toast('Greetings!', {
-                icon: getRandomIcon(),
-                style
-            });
-        } catch (error) {
-            toast.error("");
-            console.log(error);
         }
     };
 
@@ -138,10 +132,123 @@ function App() {
         });
     }
 
+    const greet = async function () {
+        staticStartLoading();
+
+        const icon = getRandomIcon();
+        const greetId = toast.loading('Attempting to greet...', { style });
+        try {
+            const { ethereum } = window;
+            if (!ethereum) {
+                console.log('Please install non-custodial wallet.');
+                toast.error('Please install non-custodial wallet.', { style, id: greetId });
+                return;
+            }
+            const greetPortalContract = await getGreetPortalContract(ethereum);
+
+            // let greetCount = await greetPortalContract.getTotalGreetings();
+            // console.log(`Retrieved total number of greetings: ${hexStringToNumber(greetCount)}`);
+            // const countId = toast.loading(`Current greet count: ${greetCount}`, { style });
+
+            const greetTxn = await greetPortalContract.greet();
+            console.log(`Mining greeting (${greetTxn.hash})`);
+            toast.loading(`Mining greeting (${getAccountShorthand(greetTxn.hash)})`, { style, id: greetId });
+
+            await greetTxn.wait();
+
+            console.log(`Greeting mined (${greetTxn.hash})!`);
+            toast.success(`Greeting mined (${getAccountShorthand(greetTxn.hash)})!`, { style, id: greetId });
+
+            // greetCount = await greetPortalContract.getTotalGreetings();
+            // console.log(`Retrieved total number of greetings: ${hexStringToNumber(greetCount)}`);
+
+            delay(1000);
+            toast('Greetings!', { icon, style, id: greetId });
+
+            // toast(`New greet count: ${greetCount}`, { icon, style, id: countId });
+            
+            completeLoading();
+        } catch (error) {
+            decreaseLoading();
+
+            toast.error('Did not greet :/', { style, id: greetId });
+            console.log(error);
+        }
+    };
+
+    const getTotalGreetings = async function () {
+        continuousStartLoading();
+
+        const icon = getRandomIcon();
+        try {
+            const { ethereum } = window;
+            if (!ethereum) {
+                console.log('Please install non-custodial wallet.');
+                toast.error('Please install non-custodial wallet.', { style });
+                return;
+            }
+            const greetPortalContract = await getGreetPortalContract(ethereum);
+
+            let greetCount = await greetPortalContract.getTotalGreetings();
+            console.log(`Total greet count: ${greetCount}`);
+            toast(`Total greet count: ${greetCount}`, { icon, style });
+
+            completeLoading();
+        } catch (error) {
+            decreaseLoading();
+
+            toast.error('Unable to get total greet count.', { style });
+            console.log(error);
+        }
+    };
+
+    const getGreetPortalContract = async function (ethereum: any) {
+        const provider = new ethers.providers.Web3Provider(ethereum);
+        const signer = provider.getSigner();
+        return new ethers.Contract(
+            greetPortalContractAddress,
+            greetPortalContractABI,
+            signer
+        );
+    }
+
+    const getNetworkLink = function (): string {
+        if (networkName === '') {
+            return ETHERSCAN_MAINNET_BASE_URL;
+        }
+
+        const formattedAddressPath = formatString(ETHERSCAN_ADDRESS_PATH, currentAccount);
+        return networkName === 'Mainnet' ?
+            formatString(
+                ETHERSCAN_MAINNET_BASE_URL, formattedAddressPath
+            ) :
+            formatString(
+                ETHERSCAN_TESTNET_BASE_URL, networkName.toLowerCase(), formattedAddressPath
+            );
+    }
+
+    const continuousStartLoading = function () {
+        // @ts-ignore
+        loadingBarRef.current.continuousStart();
+    };
+
+    const staticStartLoading = function () {
+        // @ts-ignore
+        loadingBarRef.current.staticStart(10);
+    };
+
+    const decreaseLoading = function () {
+        // @ts-ignore
+        loadingBarRef.current.decrease(100);
+    };
+    
+    const completeLoading = function () {
+        // @ts-ignore
+        loadingBarRef.current.complete();
+    };
+    
     useEffect(function () {
         walletConnected();
-        getBalance();
-        getNetworkName();
 
         const { ethereum } = window;
 
@@ -163,6 +270,11 @@ function App() {
     return (
         <div className='mainContainer'>
 
+            <LoadingBar
+                color='orange'
+                ref={loadingBarRef}
+            />
+
             <Toaster
                 position='top-right'
                 reverseOrder={true}
@@ -171,96 +283,89 @@ function App() {
             <div className='dataContainer'>
 
                 <div className='header'>
-                    Greetings <span role='img' aria-label='sushi'>🍣</span>
+                    {
+                        isInstalled ? ('Greetings') : ('Please install a supported wallet ')
+                    } <span role='img' aria-label='sushi emoji'>🍣</span>
                 </div>
 
-                <FadeIn>
-                    <div className='bio'>
-                        The name's Bay. Noah Bay(indirli). Connect your wallet and greet me!
-                    </div>
-                </FadeIn>
-
+                {
+                    isInstalled
+                        ?
+                    (
+                        <FadeIn>
+                            <div className='bio'>
+                                The name's Bay. Noah Bay(indirli).
+                                <br/>
+                                { currentAccount ? ('Thanks for connecting. Now greet me!') : ('Connect your wallet and greet me!') }
+                            </div>
+                        </FadeIn>
+                    )
+                        :
+                    (
+                        <FadeIn>
+                            <div className='bio'>
+                                Supported wallets: <b>{SUPPORTED_WALLETS.join(', ')}</b>... that's it.
+                            </div>
+                        </FadeIn>
+                    )
+                }
                 {
                     !currentAccount && isInstalled
                         &&
                     (
                         <button className='mainButton' onClick={connectWallet}>
-                            Connect Wallet <span role='img' aria-label='flying money'>💸</span>
+                            Connect  Wallet <span role='img' aria-label='flying money emoji'>💸</span>
                         </button>
                     )
                 }
-
                 {
                     currentAccount
                         &&
                     (
                         <button className='mainButton' onClick={greet}>
-                            Greet Me <span role='img' aria-label='waving hand emoji'>👋</span>
+                            Greet  Me <span role='img' aria-label='waving hand emoji'>👋</span>
                         </button>
                     )
                 }
-
-                <button className='mainButton' onClick={clearToasts}>
-                    Eat Toast <span role='img' aria-label='waving hand emoji'>🍞</span>
-                </button>
-
+                {
+                    currentAccount
+                        &&
+                    (
+                        <button className='mainButton' onClick={getTotalGreetings}>
+                            Get  Total  Greetings <span role='img' aria-label='abacus emoji'>🧮</span>
+                        </button>
+                    )
+                }
+                {
+                    currentAccount
+                        &&
+                    (
+                        <button className='mainButton' onClick={clearToasts}>
+                            Eat  Toast <span role='img' aria-label='bread emoji'>🍞</span>
+                        </button>
+                    )
+                }
                 {
                     balance >= 0
                         &&
                     (
                         <FadeIn>
-                            <div className='balance'>
-                                Current balance: {balance} ETH { networkName !== '' && `(on ${networkName})`}
+                            <div className='balanceText'>
+                                Current balance: <a className='boringLink' href={getNetworkLink()} target="_blank">
+                                    <span id='balance'><b>{balance} ETH</b></span>
+                                </a> { networkName !== '' && `(on ${networkName})`} <span role='img' aria-label='money bag emoji'>💰</span>
+                                <br></br>
+                                <br></br>
+                                <a className='boringLink' href='https://ropsten.etherscan.io/address/0xD45DA419Ae6c960530A7cFa2aFff84cd08B907dC' target="_blank">    
+                                    <i>Greet Contract: 0xD45DA419Ae6c960530A7cFa2aFff84cd08B907dC</i> <span role='img' aria-label='paper emoji'>📄</span>
+                                </a>
                             </div>
                         </FadeIn>
                     )
                 }
-
             </div>
         </div>
     );
 }
 
 export default App;
-
-const style = {
-    borderRadius: '10px',
-    background: '#333',
-    color: '#fff'
-};
-
-function getAccountShorthand(currentAccount: string): string {
-    const currentAccountPrefix = currentAccount.substring(0, 4);
-    const currentAccountSuffix = currentAccount.substring(
-        currentAccount.length - 4, currentAccount.length
-    );
-
-    return `${currentAccountPrefix}...${currentAccountSuffix}`;
-};
-
-function delay(ms: number): Promise<any> {
-    return new Promise(
-        resolve => setTimeout(resolve, ms)
-    );
-};
-
-function getRandomIcon() {
-    return `${ALL_EMOJIS[randomInteger(0, ALL_EMOJIS.length - 1)]}`;
-}
-
-function randomInteger(min: number, max: number) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function hexStringToBalance(balanceHexString: string) {
-    const balanceString = parseInt(balanceHexString, 16) / (10 ** 18);
-
-    const balance: number = +balanceString.toFixed(4)
-
-    return balance;
-}
-
-function chainIdHexToNetworkName(chainIdHexString: string): string {
-    const chainId: number = parseInt(chainIdHexString, 16);
-    return CHAINS[chainId];
-}
