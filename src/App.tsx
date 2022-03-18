@@ -284,7 +284,7 @@ function App() {
                 <div className='header'>
                     {
                         isInstalled ? ('Greetings') : ('Please install a supported wallet ')
-                    } <span role='img' aria-label='sushi emoji'>🍣</span>
+                    } <span role='img' aria-label='sushi emoji'> 🍣</span>
                 </div>
 
                 {
